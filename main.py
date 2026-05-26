@@ -119,13 +119,21 @@ class Record:
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
 
-    #Додаємо адресу до контакту
-    def add_address(self, address):
-        self.addresses.append(Address(address))
+    #Повертаємо адресу із вказаним значення, якщо знайдено, інакше повертаємо нан
+    def find_address(self, address):
+        address_lower = str(address).lower()
+        for a in self.addresses:
+            if a.value.lower() == address_lower:
+                return a
+        return None
 
-    #Додаємо email до контакту
-    def add_email(self, email):
-        self.emails.append(Email(email))
+    #Повертаємо імейл із вказаним значенням, якщо знайдено, інакше повертаємо нан
+    def find_email(self, email):
+        email_lower = str(email).lower()
+        for e in self.emails:
+            if e.value.lower() == email_lower:
+                return e
+        return None
 
     def __str__(self):
         #Якщо ДН пуста то не виводимо її
@@ -281,11 +289,42 @@ def show_phone(args, book: AddressBook):
 #Функція виводу всіх контактів
 @input_error
 def show_all(book: AddressBook):
-    #Якщо словник порожній то повертаємо відповідне повідомлення 
+    #Якщо словник порожній то повертаємо відповідне повідомлення
     if not book.data:
         return "Address book is empty."
-    #Збираємо всі записи в рядок, роділяючи символом нового рядка
-    return "\n".join(str(record) for record in book.data.values())
+    headers = ("Name", "Birthday", "Phones", "E-mails", "Addresses")
+    #Для кожного контакту збираємо колонки як списки рядків
+    rows = []
+    for record in book.data.values():
+        name_lines = [record.name.value]
+        birthday_lines = [str(record.birthday)] if record.birthday is not None else ["-"]
+        phone_lines = [p.value for p in record.phones] if record.phones else ["-"]
+        email_lines = [e.value for e in record.emails] if record.emails else ["-"]
+        address_lines = [a.value for a in record.addresses] if record.addresses else ["-"]
+        rows.append((name_lines, birthday_lines, phone_lines, email_lines, address_lines))
+    #Рахуємо ширину кожної колонки по найдовшому значенню (заголовок або будь-який рядок з даних)
+    widths = []
+    for i, header in enumerate(headers):
+        max_data = max((len(line) for row in rows for line in row[i]), default=0)
+        widths.append(max(len(header), max_data))
+    #Розділювач рядків таблиці
+    separator = "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+    lines = [separator]
+    #Заголовки вирівнюємо по центру
+    lines.append("| " + " | ".join(f"{headers[i]:^{widths[i]}}" for i in range(len(headers))) + " |")
+    lines.append(separator)
+    #Для кожного контакту створюємо стільки візуальних рядків, скільки потрібно для найдовшої колонки
+    for row in rows:
+        row_height = max(len(col) for col in row)
+        for line_idx in range(row_height):
+            cells = []
+            for i, col in enumerate(row):
+                #Якщо для цієї колонки рядок існує беремо його, інакше підставляємо пусто
+                value = col[line_idx] if line_idx < len(col) else ""
+                cells.append(f"{value:<{widths[i]}}")
+            lines.append("| " + " | ".join(cells) + " |")
+        lines.append(separator)
+    return "\n".join(lines)
 
 
 #Функція додавання ДН до контакту
@@ -339,8 +378,12 @@ def add_address(args, book: AddressBook):
     #Якщо контакту з таким іменем нема, повертаємо контакт нот фаунд
     if record is None:
         return "Contact not found."
+    #Створюємо об'єкт адреси, потім перевіряємо унікальність
+    address_obj = Address(address)
+    if record.find_address(address_obj.value) is not None:
+        return f"Address '{address_obj.value}' is already in {name}'s contact."
     #Записуємо адресу
-    record.add_address(address)
+    record.addresses.append(address_obj)
     return "Address added."
 
 
@@ -368,7 +411,11 @@ def add_email(args, book: AddressBook):
     record = book.find(name)
     if record is None:
         return "Contact not found."
-    record.add_email(email)
+    #Створюємо об'єкт email-у, потім перевіряємо унікальність
+    email_obj = Email(email)
+    if record.find_email(email_obj.value) is not None:
+        return f"Email {email_obj.value} is already in {name}'s contact."
+    record.emails.append(email_obj)
     return "Email added."
 
 
