@@ -422,10 +422,42 @@ def load_data(filename="addressbook.pkl"):
     except FileNotFoundError:
         return AddressBook()
 
+#Виводить список усіх доступних команд та формат їх використання у вигляді таблиці
+def print_help():
+    rows = [
+        ("hello", "Greeting"),
+        ("add <name> <phone>", "Add a new contact or a phone to existing one"),
+        ("change-phone <name> <old_phone> <new_phone>", "Replace one of the contact's phones"),
+        ("phone <name>", "Show all phones of the contact"),
+        ("add-birthday <name> <DD.MM.YYYY>", "Set the contact's birthday"),
+        ("show-birthday <name>", "Show the contact's birthday"),
+        ("birthdays <days>", "Show contacts with birthdays within next <days> days"),
+        ("add-address <name> <address text>", "Add an address to the contact (can be multiple)"),
+        ("show-address <name>", "Show all addresses of the contact"),
+        ("add-email <name> <email>", "Add an email to the contact (can be multiple)"),
+        ("show-emails <name>", "Show all emails of the contact"),
+        ("all", "Show all contacts in the address book"),
+        ("help", "Show this help message"),
+        ("close | exit", "Save and exit"),
+    ]
+    #Рахуємо ширину колонок по найдовшому значенню
+    cmd_width = max(len("Command"), max(len(cmd) for cmd, _ in rows))
+    desc_width = max(len("Description"), max(len(desc) for _, desc in rows))
+    #Розділювач рядків таблиці
+    separator = f"+-{'-' * cmd_width}-+-{'-' * desc_width}-+"
+    print(separator)
+    print(f"| {'Command':^{cmd_width}} | {'Description':^{desc_width}} |")
+    print(separator)
+    for cmd, desc in rows:
+        print(f"| {cmd:<{cmd_width}} | {desc:<{desc_width}} |")
+    print(separator)
+
 def main():
     #Завантажуємо збережену адресну книгу з файлу, або створюємо нову якщо файлу немає
     book = load_data()
     print("Welcome to the assistant bot!")
+    #Виводимо список команд при запуску
+    print_help()
     #Запускаємо нескінченний цикл
     while True:
         #Запитуємо ввід команди
@@ -443,6 +475,8 @@ def main():
             break
         elif command == "hello":
             print("How can I help you?")
+        elif command == "help":
+            print_help()
         elif command == "add":
             print(add_contact(args, book))
         elif command == "change-phone":
