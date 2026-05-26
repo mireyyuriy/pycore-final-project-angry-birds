@@ -114,8 +114,8 @@ class AddressBook(UserDict):
     def delete(self, name):
         self.data.pop(name, None)
 
-    #Повертаємо список контактів, яких потрібно привітати протягом наступних сім днів, якщо припадає на вихідний, переносимо на понеділок
-    def get_upcoming_birthdays(self):
+    #Повертаємо список контактів, яких потрібно привітати протягом наступних days днів, якщо припадає на вихідний, переносимо на понеділок
+    def get_upcoming_birthdays(self, days):
         upcoming = []
         today = datetime.today().date()
         #Запускаємо цикл по всіх контактах
@@ -131,7 +131,7 @@ class AddressBook(UserDict):
                 birthday_this_year = birthday_this_year.replace(year=today.year + 1)
             delta_days = (birthday_this_year - today).days
             #Перевіряємо чи день народження потрапляє у вікно наступних days днів
-            if 0 <= delta_days <= 7:
+            if 0 <= delta_days <= days:
                 congratulation_date = birthday_this_year
                 #5 = субота, 6 = неділя, переносимо на понеділок
                 if congratulation_date.weekday() == 5:
@@ -269,7 +269,7 @@ def add_birthday(args, book: AddressBook):
 def show_birthday(args, book: AddressBook):
     #Якщо в args нічого немає викидаємо помилку — обробить декоратор
     if not args:
-        raise IndexError
+        raise NotEnoughArgsError("Give me name please.")
     #Беремо перший аргумент інші ігноруємо
     name = args[0]
     #Шукаємо контакт у книзі контактів за іменем, якщо контакт не знайдено повертається нан
@@ -284,14 +284,25 @@ def show_birthday(args, book: AddressBook):
     return str(record.birthday)
 
 
-#Функція що показує контакти яких потрібно привітати протягом наступного тижня
+#Функція що показує контакти яких потрібно привітати протягом наступних days днів
 @input_error
-def birthdays(book: AddressBook):
-    #Отримуємо словник з контактами та днями народження на наступні 7 днів
-    upcoming = book.get_upcoming_birthdays()
-    #Якщо словник пустий повертаємо повідомлення що не буде ДН в наступні 7 днів
+def birthdays(args, book: AddressBook):
+    #Якщо в args нічого немає викидаємо помилку — обробить декоратор
+    if not args:
+        raise NotEnoughArgsError("Give me number of days please.")
+    #Конвертуємо перший аргумент в число, якщо не вдається — викидаємо помилку
+    try:
+        days = int(args[0])
+    except ValueError:
+        raise ValueError("Number of days must be an integer.")
+    #Перевіряємо що число не від'ємне
+    if days < 0:
+        raise ValueError("Number of days must be non-negative.")
+    #Отримуємо словник з контактами та днями народження на наступні days днів
+    upcoming = book.get_upcoming_birthdays(days)
+    #Якщо словник пустий повертаємо повідомлення що не буде ДН в наступні days днів
     if not upcoming:
-        return "No upcoming birthdays in the next 7 days."
+        return f"No upcoming birthdays in the next {days} days."
     #Виводимо у зручному для читання форматі з переносом строки
     return "\n".join(f"{item['name']} congratulation date: {item['congratulation_date']}" for item in upcoming)
 
@@ -342,7 +353,7 @@ def main():
         elif command == "show-birthday":
             print(show_birthday(args, book))
         elif command == "birthdays":
-            print(birthdays(book))
+            print(birthdays(args, book))
         else:
             print("Invalid command.")
 
