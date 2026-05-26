@@ -1,4 +1,5 @@
 import pickle
+import re
 from collections import UserDict
 from datetime import datetime, timedelta
 
@@ -37,6 +38,28 @@ class Phone(Field):
     def _is_valid(value):
         return isinstance(value, str) and len(value) == 10 and value.isdigit()
 
+#Поле з адресою контакту. Зберігається як рядок, не може бути порожнім.
+class Address(Field):
+
+    def __init__(self, value):
+        #Перевіряємо чи є велью не порожнє, якщо порожнє викидаємо помилку
+        if not str(value).strip():
+            raise ValueError("Address can't be empty")
+        super().__init__(str(value).strip())
+
+#Поле з email-адресою. Валідує наявність @ та точки перед коре-доменом.
+class Email(Field):
+
+    #Локальна частина, @, доменна частина, крапка, TLD
+    _email_re = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+    def __init__(self, value):
+        value = str(value).strip()
+        #Валідуємо email, якщо не проходить валідація викидаємо помилку
+        if not self._email_re.match(value):
+            raise ValueError(f"Invalid email format '{value}': expected something like 'name@domain.com'.")
+        super().__init__(value)
+
 #Поле з датою народження. Валідує формат DD.MM.YYYY і зберігає об'єкт datetime.
 class Birthday(Field):
 
@@ -60,6 +83,8 @@ class Record:
         self.name = Name(name)
         self.phones = []
         self.birthday = None
+        self.addresses = []
+        self.emails = []
 
     #Додаємо новий телефон до запису. Валідація відбувається у конструкторі Phone
     def add_phone(self, phone):
@@ -94,10 +119,22 @@ class Record:
     def add_birthday(self, birthday):
         self.birthday = Birthday(birthday)
 
+    #Додаємо адресу до контакту
+    def add_address(self, address):
+        self.addresses.append(Address(address))
+
+    #Додаємо email до контакту
+    def add_email(self, email):
+        self.emails.append(Email(email))
+
     def __str__(self):
         #Якщо ДН пуста то не виводимо її
         birthday_str = f", Birthday: {self.birthday}" if self.birthday is not None else ""
-        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}{birthday_str}"
+        #Якщо список адрес порожній то не виводимо
+        address_str = f", Addresses: {' | '.join(a.value for a in self.addresses)}" if self.addresses else ""
+        #Якщо список email-ів порожній то не виводимо
+        email_str = f", Emails: {'; '.join(e.value for e in self.emails)}" if self.emails else ""
+        return f"Contact name: {self.name.value}, phones: {'; '.join(p.value for p in self.phones)}{birthday_str}{address_str}{email_str}"
 
 #Запис адресної книги з методами для роботи з нею
 class AddressBook(UserDict):
@@ -106,9 +143,13 @@ class AddressBook(UserDict):
     def add_record(self, record: Record):
         self.data[record.name.value] = record
 
-    #Повертаємо запис за іменем, якщо запису немає викидаємо помилку
+    #Повертаємо запис за іменем (пошук нечутливий до регістру), якщо запису немає повертаємо нан
     def find(self, name):
-        return self.data.get(name)
+        name_lower = str(name).lower()
+        for key, record in self.data.items():
+            if key.lower() == name_lower:
+                return record
+        return None
     
     #Видаляємо запис за іменем
     def delete(self, name):
@@ -284,6 +325,68 @@ def show_birthday(args, book: AddressBook):
     return str(record.birthday)
 
 
+#Функція додавання адреси до контакту
+@input_error
+def add_address(args, book: AddressBook):
+    #Якщо в args менше 2х елементів викидаємо помилку — обробить декоратор
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me name and address please.")
+    name = args[0]
+    #Об'єднуємо всі аргументи після імені в один рядок-адресу
+    address = " ".join(args[1:])
+    #Шукаємо контакт у книзі контактів за іменем, якщо контакт не знайдено повертається нан
+    record = book.find(name)
+    #Якщо контакту з таким іменем нема, повертаємо контакт нот фаунд
+    if record is None:
+        return "Contact not found."
+    #Записуємо адресу
+    record.add_address(address)
+    return "Address added."
+
+
+#Функція відображення всіх адрес контакту
+@input_error
+def show_address(args, book: AddressBook):
+    if not args:
+        raise NotEnoughArgsError("Give me name please.")
+    name = args[0]
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    if not record.addresses:
+        return f"{name} has no addresses set."
+    #Виводимо кожну адресу з нового рядка з нумерацією
+    return "\n".join(f"{i}. {a.value}" for i, a in enumerate(record.addresses, start=1))
+
+
+#Функція додавання імейлу до контакту
+@input_error
+def add_email(args, book: AddressBook):
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me name and email please.")
+    name, email, *_ = args
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    record.add_email(email)
+    return "Email added."
+
+
+#Функція відображення всіх імейлів контакту
+@input_error
+def show_email(args, book: AddressBook):
+    if not args:
+        raise NotEnoughArgsError("Give me name please.")
+    name = args[0]
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    if not record.emails:
+        return f"{name} has no emails set."
+    #Виводимо кожен email з нового рядка з нумерацією
+    return "\n".join(f"{i}. {e.value}" for i, e in enumerate(record.emails, start=1))
+
+
 #Функція що показує контакти яких потрібно привітати протягом наступних days днів
 @input_error
 def birthdays(args, book: AddressBook):
@@ -342,7 +445,7 @@ def main():
             print("How can I help you?")
         elif command == "add":
             print(add_contact(args, book))
-        elif command == "change":
+        elif command == "change-phone":
             print(change_contact(args, book))
         elif command == "phone":
             print(show_phone(args, book))
@@ -354,6 +457,14 @@ def main():
             print(show_birthday(args, book))
         elif command == "birthdays":
             print(birthdays(args, book))
+        elif command == "add-address":
+            print(add_address(args, book))
+        elif command == "show-address":
+            print(show_address(args, book))
+        elif command == "add-email":
+            print(add_email(args, book))
+        elif command == "show-emails":
+            print(show_email(args, book))
         else:
             print("Invalid command.")
 
