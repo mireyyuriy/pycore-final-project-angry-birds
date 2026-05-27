@@ -92,11 +92,11 @@ class Record:
 
     #Видаляємо телефон зі списку якщо його знайдено, якщо не знайдено нічого не робимо
     def remove_phone(self, phone):
-        #Викликаємо метод файнд_фон
         found = self.find_phone(phone)
-        #Якщо метод повернув не нан, видаляємо елемент зі списку
         if found is not None:
             self.phones.remove(found)
+            return
+        raise ValueError(f"Phone '{phone}' was not found in the record.")
 
     #Замінюємо старий телефон на новий 
     def edit_phone(self, old_phone, new_phone):
@@ -264,6 +264,37 @@ def change_contact(args, book: AddressBook):
     #Заміняємо старий телефон на новий
     record.edit_phone(old_phone, new_phone)
     return "Contact updated."
+
+
+#Функція видалення телефону з контакту
+@input_error
+def delete_phone(args, book: AddressBook):
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me name and phone please.")
+    name, phone, *_ = args
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    record.remove_phone(phone)
+    return "Phone removed."
+
+
+#Функція видалення контакту з книги
+@input_error
+def delete_contact(args, book: AddressBook):
+    #Якщо в args нічого немає викидаємо помилку — обробить декоратор
+    if not args:
+        raise NotEnoughArgsError("Give me name please.")
+    #Беремо перший аргумент інші ігноруємо
+    name = args[0]
+    #Шукаємо контакт у книзі контактів за іменем, якщо контакт не знайдено повертається нан
+    record = book.find(name)
+    #Якщо контакту з таким іменем нема, повертаємо контакт нот фаунд
+    if record is None:
+        return "Contact not found."
+    #Видаляємо за фактичним ключем запису (find нечутливий до регістру, delete — чутливий)
+    book.delete(record.name.value)
+    return "Contact deleted."
 
 
 #Функція виводу номерів телефона
@@ -492,6 +523,8 @@ def print_help():
         ("add <name> <phone>", "Add a new contact or a phone to existing one"),
         ("change-phone <name> <old_phone> <new_phone>", "Replace one of the contact's phones"),
         ("phone <name>", "Show all phones of the contact"),
+        ("remove-phone <name> <phone>", "Remove a phone from the contact"),
+        ("delete <name>", "Delete a contact from the address book"),
         ("add-birthday <name> <DD.MM.YYYY>", "Set the contact's birthday"),
         ("show-birthday <name>", "Show the contact's birthday"),
         ("birthdays <days>", "Show contacts with birthdays within next <days> days"),
@@ -547,6 +580,10 @@ def main():
             print(change_contact(args, book))
         elif command == "phone":
             print(show_phone(args, book))
+        elif command == "remove-phone":
+            print(delete_phone(args, book))
+        elif command == "delete":
+            print(delete_contact(args, book))
         elif command == "all":
             print(show_all(book))
         elif command == "add-birthday":
