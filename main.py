@@ -126,6 +126,13 @@ class Record:
             if a.value.lower() == address_lower:
                 return a
         return None
+    
+    #Видаляємо адресу зі списку якщо її знайдено, інакше викидаємо помилку
+    def remove_address(self, address):
+        found = self.find_address(address)
+        if found is None:
+            raise ValueError(f"Address '{address}' was not found in the record.")
+        self.addresses.remove(found)
 
     #Повертаємо імейл із вказаним значенням, якщо знайдено, інакше повертаємо нан
     def find_email(self, email):
@@ -469,6 +476,18 @@ def add_address(args, book: AddressBook):
     record.addresses.append(address_obj)
     return "Address added."
 
+#Функція видалення адреси контакту
+@input_error
+def remove_address(args, book: AddressBook):
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me name and address please.")
+    name = args[0]
+    address = " ".join(args[1:])
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    record.remove_address(address)
+    return "Address removed."
 
 #Функція відображення всіх адрес контакту
 @input_error
@@ -592,6 +611,7 @@ def print_help():
         ("show-birthday <name>", "Show the contact's birthday"),
         ("birthdays <days>", "Show contacts with birthdays within next <days> days"),
         ("add-address <name> <address text>", "Add an address to the contact (can be multiple)"),
+        ("remove-address <name> <address text>", "Remove one of the contact's addresses"),
         ("show-address <name>", "Show all addresses of the contact"),
         ("add-email <name> <email>", "Add an email to the contact (can be multiple)"),
         ("change-email <name> <old_email> <new_email>", "Replace one of the contact's emails"),
@@ -661,6 +681,8 @@ def main():
             print(birthdays(args, book))
         elif command == "add-address":
             print(add_address(args, book))
+        elif command == "remove-address":
+            print(remove_address(args, book))    
         elif command == "show-address":
             print(show_address(args, book))
         elif command == "add-email":
