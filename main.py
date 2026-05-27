@@ -428,12 +428,36 @@ def _render_contacts_table(records):
     return "\n".join(lines)
 
 
-#Функція виводу всіх контактів
+#Функція виводу всіх контактів зі сторінковою навігацією
 @input_error
-def show_all(book: AddressBook):
+def show_all(args, book: AddressBook):
     if not book.data:
         return "Address book is empty."
-    return _render_contacts_table(book.data.values())
+    #Перший аргумент (якщо є) — розмір сторінки, за замовчуванням 5
+    page_size = 5
+    if args:
+        try:
+            page_size = int(args[0])
+        except ValueError:
+            raise ValueError("Page size must be an integer.")
+        if page_size < 1:
+            raise ValueError("Page size must be at least 1.")
+    #Перетворюємо записи у список, щоб мати індексний доступ для нарізки на сторінки
+    records = list(book.data.values())
+    #Рахуємо загальну кількість сторінок (округлення вгору)
+    total_pages = (len(records) + page_size - 1) // page_size
+    #Йдемо по сторінках: кожна сторінка — зріз records по page_size записів
+    for page in range(total_pages):
+        start = page * page_size
+        chunk = records[start:start + page_size]
+        print(_render_contacts_table(chunk))
+        print(f"Page {page + 1}/{total_pages}")
+        #Після останньої сторінки навігація не потрібна
+        if page + 1 < total_pages:
+            #Чекаємо Enter для наступної сторінки або 'q' для виходу
+            if input("Press Enter for next page, or 'q' to quit: ").strip().lower() == "q":
+                break
+    return ""
 
 
 #Функція виводу всієї інформації по одному контакту в табличному форматі
@@ -698,9 +722,9 @@ def print_help():
         ("remove-email <name> <email>", "Remove one of the contact's emails"),
         ("show-emails <name>", "Show all emails of the contact"),
         ("show-contact <name>", "Show all information of the contact in a table"),
-        ("search <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
+        ("search-contacts <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
+        ("all-contacts [page_size]", "Show all contacts page by page (default 10 per page)"),
         ("add-note <text>", "Add a new note (id is assigned automatically)"),
-        ("all", "Show all contacts in the address book"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
     ]
@@ -757,8 +781,11 @@ def main():
             print(delete_phone(args, book))
         elif command == "delete":
             print(delete_contact(args, book))
-        elif command == "all":
-            print(show_all(book))
+        elif command == "all-contacts":
+            #show_all сама друкує сторінки; друкуємо лише непорожній результат (повідомлення/помилку)
+            result = show_all(args, book)
+            if result:
+                print(result)
         elif command == "add-birthday":
             print(add_birthday(args, book))
         elif command == "show-birthday":
@@ -781,7 +808,7 @@ def main():
             print(show_email(args, book))
         elif command == "show-contact":
             print(show_contact(args, book))
-        elif command == "search":
+        elif command == "search-contacts":
             print(search_contacts(args, book))
         elif command == "add-note":
             print(add_note(args, notes))    
