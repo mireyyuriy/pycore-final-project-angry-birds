@@ -286,16 +286,12 @@ def show_phone(args, book: AddressBook):
     return f"{name}'s phones are  {'; '.join(p.value for p in record.phones)}"
 
 
-#Функція виводу всіх контактів
-@input_error
-def show_all(book: AddressBook):
-    #Якщо словник порожній то повертаємо відповідне повідомлення
-    if not book.data:
-        return "Address book is empty."
+#Функція рендерингу таблиці контактів за списком записів
+def _render_contacts_table(records):
     headers = ("Name", "Birthday", "Phones", "E-mails", "Addresses")
     #Для кожного контакту збираємо колонки як списки рядків
     rows = []
-    for record in book.data.values():
+    for record in records:
         name_lines = [record.name.value]
         birthday_lines = [str(record.birthday)] if record.birthday is not None else ["-"]
         phone_lines = [p.value for p in record.phones] if record.phones else ["-"]
@@ -325,6 +321,26 @@ def show_all(book: AddressBook):
             lines.append("| " + " | ".join(cells) + " |")
         lines.append(separator)
     return "\n".join(lines)
+
+
+#Функція виводу всіх контактів
+@input_error
+def show_all(book: AddressBook):
+    if not book.data:
+        return "Address book is empty."
+    return _render_contacts_table(book.data.values())
+
+
+#Функція виводу всієї інформації по одному контакту в табличному форматі
+@input_error
+def show_contact(args, book: AddressBook):
+    if not args:
+        raise NotEnoughArgsError("Give me name please.")
+    name = args[0]
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    return _render_contacts_table([record])
 
 
 #Функція додавання ДН до контакту
@@ -483,6 +499,7 @@ def print_help():
         ("show-address <name>", "Show all addresses of the contact"),
         ("add-email <name> <email>", "Add an email to the contact (can be multiple)"),
         ("show-emails <name>", "Show all emails of the contact"),
+        ("show-contact <name>", "Show all information of the contact in a table"),
         ("all", "Show all contacts in the address book"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
@@ -546,6 +563,8 @@ def main():
             print(add_email(args, book))
         elif command == "show-emails":
             print(show_email(args, book))
+        elif command == "show-contact":
+            print(show_contact(args, book))
         else:
             print("Invalid command.")
 
