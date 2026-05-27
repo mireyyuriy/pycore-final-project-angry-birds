@@ -224,6 +224,37 @@ class AddressBook(UserDict):
                 #Додаємо до списку ім'я та дату поздоровлення
                 upcoming.append({"name": record.name.value, "congratulation_date": congratulation_date.strftime("%d.%m.%Y"),})
         return upcoming
+    
+#Сутність нотатки: успадковує Field (тіло зберігається у value), додає унікальний айді
+class Note(Field):
+
+    def __init__(self, note_id, value):
+        #Перевіряємо що тіло нотатки не порожнє, якщо порожнє викидаємо помилку
+        if not str(value).strip():
+            raise ValueError("Note can't be empty")
+        #Тіло нотатки зберігаємо у value базового класу Field
+        super().__init__(str(value).strip())
+        #Айді присвоюється ззовні (NotesBook) з автоінкрементного лічильника
+        self.id = note_id
+
+    def __str__(self):
+        return f"Note #{self.id}: {self.value}"
+
+#Колекція нотаток. Айді присвоюється автоматично та автоінкрементується
+class NotesBook(UserDict):
+
+    def __init__(self):
+        super().__init__()
+        #Лічильник наступного айді, починається з 1. Зберігається у pickle разом з книгою, тому послідовність айді не скидається після завантаження
+        self._next_id = 1
+
+    #Додаємо нову нотатку, айді присвоюється автоматично з лічильника
+    def add_note(self, value):
+        note = Note(self._next_id, value)
+        self.data[note.id] = note
+        #Автоінкрементуємо лічильник, щоб наступна нотатка отримала новий айді
+        self._next_id += 1
+        return note
 
 #Обробка помилок при недостатній кількості аргументів
 class NotEnoughArgsError(ValueError):
@@ -416,6 +447,30 @@ def show_contact(args, book: AddressBook):
         return "Contact not found."
     return _render_contacts_table([record])
 
+#Функція пошуку контактів за будь-яким полем (нечутлива до регістру, частковий збіг)
+@input_error
+def search_contacts(args, book: AddressBook):
+    if not args:
+        raise NotEnoughArgsError("Give me a search query please.")
+    #Об'єднуємо всі аргументи в один запит та приводимо до нижнього регістру
+    query = " ".join(args).lower()
+    matches = []
+    for record in book.data.values():
+        #Збираємо всі поля контакту в список рядків для пошуку
+        fields = [record.name.value]
+        if record.birthday is not None:
+            fields.append(str(record.birthday))
+        fields.extend(p.value for p in record.phones)
+        fields.extend(e.value for e in record.emails)
+        fields.extend(a.value for a in record.addresses)
+        #Якщо запит є частиною будь-якого поля — контакт знайдено
+        if any(query in field.lower() for field in fields):
+            matches.append(record)
+    #Якщо нічого не знайдено повертаємо повідомлення
+    if not matches:
+        return f"No contacts found for '{query}'."
+    #Виводимо знайдені контакти у тому ж табличному форматі, що й all
+    return _render_contacts_table(matches)
 
 #Функція додавання ДН до контакту
 @input_error
@@ -584,6 +639,18 @@ def birthdays(args, book: AddressBook):
     #Виводимо у зручному для читання форматі з переносом строки
     return "\n".join(f"{item['name']} congratulation date: {item['congratulation_date']}" for item in upcoming)
 
+#Функція додавання нової нотатки
+@input_error
+def add_note(args, notes: NotesBook):
+    #Якщо в args нічого немає викидаємо помилку — обробить декоратор
+    if not args:
+        raise NotEnoughArgsError("Give me the note text please.")
+    #Об'єднуємо всі аргументи в одне тіло нотатки
+    value = " ".join(args)
+    #Створюємо нотатку, айді присвоюється автоматично з лічильника NotesBook
+    note = notes.add_note(value)
+    return f"Note added with id {note.id}."
+
 #Функція збереження адресної книги у файл за допомогою pickle
 def save_data(book, filename="addressbook.pkl"):
     with open(filename, "wb") as f:
@@ -596,6 +663,19 @@ def load_data(filename="addressbook.pkl"):
             return pickle.load(f)
     except FileNotFoundError:
         return AddressBook()
+
+#Функція збереження книги нотаток у файл за допомогою pickle
+def save_notes(notes, filename="notebook.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(notes, f)
+
+#Функція завантаження книги нотаток з файлу, якщо файл відсутній повертаємо нову книгу нотаток
+def load_notes(filename="notebook.pkl"):
+    try:
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return NotesBook()
 
 #Виводить список усіх доступних команд та формат їх використання у вигляді таблиці
 def print_help():
@@ -618,6 +698,8 @@ def print_help():
         ("remove-email <name> <email>", "Remove one of the contact's emails"),
         ("show-emails <name>", "Show all emails of the contact"),
         ("show-contact <name>", "Show all information of the contact in a table"),
+        ("search <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
+        ("add-note <text>", "Add a new note (id is assigned automatically)"),
         ("all", "Show all contacts in the address book"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
@@ -637,6 +719,8 @@ def print_help():
 def main():
     #Завантажуємо збережену адресну книгу з файлу, або створюємо нову якщо файлу немає
     book = load_data()
+    #Завантажуємо збережені нотатки з файлу, або створюємо нову книгу нотаток якщо файлу немає
+    notes = load_notes()
     print("Welcome to the assistant bot!")
     #Виводимо список команд при запуску
     print_help()
@@ -653,6 +737,8 @@ def main():
         if command in ["close", "exit"]:
             #Зберігаємо адресну книгу у файл перед виходом
             save_data(book)
+            #Зберігаємо книгу нотаток у файл перед виходом
+            save_notes(notes)
             print("Good bye!")
             break
         elif command == "hello":
@@ -695,6 +781,10 @@ def main():
             print(show_email(args, book))
         elif command == "show-contact":
             print(show_contact(args, book))
+        elif command == "search":
+            print(search_contacts(args, book))
+        elif command == "add-note":
+            print(add_note(args, notes))    
         else:
             print("Invalid command.")
 
