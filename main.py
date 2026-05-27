@@ -140,7 +140,14 @@ class Record:
         found = self.find_email(old_email)
         if found is None:
             raise ValueError(f"Email '{old_email}' was not found in the record.")
-        self.emails[self.emails.index(found)] = Email(new_email)   
+        self.emails[self.emails.index(found)] = Email(new_email) 
+
+    #Видаляємо email зі списку якщо його знайдено, інакше викидаємо помилку
+    def remove_email(self, email):
+        found = self.find_email(email)
+        if found is None:
+            raise ValueError(f"Email '{email}' was not found in the record.")
+        self.emails.remove(found)    
 
     def __str__(self):
         #Якщо ДН пуста то не виводимо її
@@ -509,6 +516,18 @@ def change_email(args, book: AddressBook):
     record.edit_email(old_email, new_email)
     return "Email updated."
 
+#Функція видалення імейлу контакту
+@input_error
+def remove_email(args, book: AddressBook):
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me name and email please.")
+    name, email, *_ = args
+    record = book.find(name)
+    if record is None:
+        return "Contact not found."
+    record.remove_email(email)
+    return "Email removed."
+
 #Функція відображення всіх імейлів контакту
 @input_error
 def show_email(args, book: AddressBook):
@@ -576,6 +595,7 @@ def print_help():
         ("show-address <name>", "Show all addresses of the contact"),
         ("add-email <name> <email>", "Add an email to the contact (can be multiple)"),
         ("change-email <name> <old_email> <new_email>", "Replace one of the contact's emails"),
+        ("remove-email <name> <email>", "Remove one of the contact's emails"),
         ("show-emails <name>", "Show all emails of the contact"),
         ("show-contact <name>", "Show all information of the contact in a table"),
         ("all", "Show all contacts in the address book"),
@@ -647,6 +667,8 @@ def main():
             print(add_email(args, book))
         elif command == "change-email":
             print(change_email(args, book))
+        elif command == "remove-email":
+            print(remove_email(args, book))
         elif command == "show-emails":
             print(show_email(args, book))
         elif command == "show-contact":
