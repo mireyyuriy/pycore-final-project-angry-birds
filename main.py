@@ -521,10 +521,10 @@ def print_help():
     rows = [
         ("hello", "Greeting"),
         ("add <name> <phone>", "Add a new contact or a phone to existing one"),
+        ("delete <name>", "Delete a contact from the address book"),
         ("change-phone <name> <old_phone> <new_phone>", "Replace one of the contact's phones"),
         ("phone <name>", "Show all phones of the contact"),
         ("remove-phone <name> <phone>", "Remove a phone from the contact"),
-        ("delete <name>", "Delete a contact from the address book"),
         ("add-birthday <name> <DD.MM.YYYY>", "Set the contact's birthday"),
         ("show-birthday <name>", "Show the contact's birthday"),
         ("birthdays <days>", "Show contacts with birthdays within next <days> days"),
