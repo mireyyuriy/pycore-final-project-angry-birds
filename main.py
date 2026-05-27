@@ -1,5 +1,6 @@
 import pickle
 import re
+import difflib
 from collections import UserDict
 from datetime import datetime, timedelta
 
@@ -705,11 +706,11 @@ def load_notes(filename="notebook.pkl"):
 def print_help():
     rows = [
         ("hello", "Greeting"),
-        ("add <name> <phone>", "Add a new contact or a phone to existing one"),
-        ("rename <old_name> <new_name>", "Rename a contact"),      
-        ("delete <name>", "Delete a contact from the address book"),
+        ("add-contact <name> <phone>", "Add a new contact or a phone to existing one"),
+        ("rename-contact <old_name> <new_name>", "Rename a contact"),      
+        ("remove-contact <name>", "Delete a contact from the address book"),
         ("change-phone <name> <old_phone> <new_phone>", "Replace one of the contact's phones"),
-        ("phone <name>", "Show all phones of the contact"),
+        ("show-phone <name>", "Show all phones of the contact"),
         ("remove-phone <name> <phone>", "Remove a phone from the contact"),
         ("add-birthday <name> <DD.MM.YYYY>", "Set the contact's birthday"),
         ("show-birthday <name>", "Show the contact's birthday"),
@@ -723,7 +724,7 @@ def print_help():
         ("show-emails <name>", "Show all emails of the contact"),
         ("show-contact <name>", "Show all information of the contact in a table"),
         ("search-contacts <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
-        ("all-contacts [page_size]", "Show all contacts page by page (default 10 per page)"),
+        ("all-contacts <page_size>", "Show all contacts page by page (default 5 per page)"),
         ("add-note <text>", "Add a new note (id is assigned automatically)"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
@@ -739,6 +740,30 @@ def print_help():
     for cmd, desc in rows:
         print(f"| {cmd:<{cmd_width}} | {desc:<{desc_width}} |")
     print(separator)
+
+#Список усіх команд — використовується для підказки найближчої команди при помилковому вводі
+COMMANDS = [
+    "hello", "help",
+    "add-contact", "rename-contact", "remove-contact",
+    "change-phone", "show-phone", "remove-phone",
+    "add-birthday", "show-birthday", "birthdays",
+    "add-address", "remove-address", "show-address",
+    "add-email", "change-email", "remove-email", "show-emails",
+    "show-contact", "search-contacts", "all-contacts",
+    "add-note",
+    "close", "exit",
+]
+
+#Підбираємо найближчі за написанням команди до введеної. Повертаємо повідомлення з підказками
+def suggest_command(command):
+    #діфліб повертає список до 5 схожих рядків відсортованих за подібністю
+    #кетофф 0.5 - нижче нього збіг вважається завеликою помилкою і ігнорується
+    matches = difflib.get_close_matches(command, COMMANDS, n=5, cutoff=0.5)
+    if matches:
+        #Перелічуємо знайдені варіанти 
+        suggestions = ", ".join(f"'{m}'" for m in matches)
+        return f"Invalid command. Did you mean: {suggestions}?"
+    return "Invalid command. Type 'help' to see available commands."
 
 def main():
     #Завантажуємо збережену адресну книгу з файлу, або створюємо нову якщо файлу немає
@@ -769,20 +794,19 @@ def main():
             print("How can I help you?")
         elif command == "help":
             print_help()
-        elif command == "add":
+        elif command == "add-contact":
             print(add_contact(args, book))
-        elif command == "rename":
+        elif command == "rename-contact":
             print(rename_contact(args, book))       
         elif command == "change-phone":
             print(change_contact(args, book))
-        elif command == "phone":
+        elif command == "show-phone":
             print(show_phone(args, book))
         elif command == "remove-phone":
             print(delete_phone(args, book))
-        elif command == "delete":
+        elif command == "remove-contact":
             print(delete_contact(args, book))
         elif command == "all-contacts":
-            #show_all сама друкує сторінки; друкуємо лише непорожній результат (повідомлення/помилку)
             result = show_all(args, book)
             if result:
                 print(result)
@@ -813,7 +837,8 @@ def main():
         elif command == "add-note":
             print(add_note(args, notes))    
         else:
-            print("Invalid command.")
+            #Невідома команда — пропонуємо найближчу за написанням
+            print(suggest_command(command))
 
 
 main()
