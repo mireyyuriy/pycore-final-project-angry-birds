@@ -163,6 +163,19 @@ class AddressBook(UserDict):
     def delete(self, name):
         self.data.pop(name, None)
 
+    #Перейменовуємо контакт: оновлюємо поле name та ключ у словнику
+    def rename(self, old_name, new_name):
+        record = self.find(old_name)
+        if record is None:
+            raise KeyError(old_name)
+        new_name_obj = Name(new_name)
+        existing = self.find(new_name_obj.value)
+        if existing is not None and existing is not record:
+            raise ValueError(f"Contact '{new_name_obj.value}' already exists.")
+        del self.data[record.name.value]
+        record.name = new_name_obj
+        self.data[new_name_obj.value] = record
+
     #Повертаємо список контактів, яких потрібно привітати протягом наступних days днів, якщо припадає на вихідний, переносимо на понеділок
     def get_upcoming_birthdays(self, days):
         upcoming = []
@@ -296,6 +309,15 @@ def delete_contact(args, book: AddressBook):
     book.delete(record.name.value)
     return "Contact deleted."
 
+#Функція перейменування контакту
+@input_error
+def rename_contact(args, book: AddressBook):
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me old name and new name please.")
+    old_name, new_name, *_ = args
+    #Перейменовуємо контакт, KeyError/ValueError обробить декоратор
+    book.rename(old_name, new_name)
+    return f"Contact renamed to {new_name}."
 
 #Функція виводу номерів телефона
 @input_error
@@ -521,6 +543,7 @@ def print_help():
     rows = [
         ("hello", "Greeting"),
         ("add <name> <phone>", "Add a new contact or a phone to existing one"),
+        ("rename <old_name> <new_name>", "Rename a contact"),      
         ("delete <name>", "Delete a contact from the address book"),
         ("change-phone <name> <old_phone> <new_phone>", "Replace one of the contact's phones"),
         ("phone <name>", "Show all phones of the contact"),
@@ -576,6 +599,8 @@ def main():
             print_help()
         elif command == "add":
             print(add_contact(args, book))
+        elif command == "rename":
+            print(rename_contact(args, book))       
         elif command == "change-phone":
             print(change_contact(args, book))
         elif command == "phone":
