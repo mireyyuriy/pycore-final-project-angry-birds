@@ -694,20 +694,41 @@ def _render_notes_table(notes_list):
     lines.append(f"| {headers[0]:^{id_width}} | {headers[1]:^{note_width}} |")
     lines.append(separator)
     for note_id, note_value in rows:
-        #Айді вирівнюємо по правому краю, текст нотатки — по лівому
-        lines.append(f"| {note_id:>{id_width}} | {note_value:<{note_width}} |")
-    lines.append(separator)
+        lines.append(f"| {note_id:<{id_width}} | {note_value:<{note_width}} |")
+        lines.append(separator)
     return "\n".join(lines)
 
 
-#Функція виводу всіх нотаток у табличному форматі
+#Функція виводу всіх нотаток у табличному форматі зі сторінковою навігацією
 @input_error
 def show_all_notes(args, notes: NotesBook):
     if not notes.data:
         return "Notes book is empty."
+    #Перший аргумент (якщо є) — розмір сторінки, за замовчуванням 5
+    page_size = 5
+    if args:
+        try:
+            page_size = int(args[0])
+        except ValueError:
+            raise ValueError("Page size must be an integer.")
+        if page_size < 1:
+            raise ValueError("Page size must be at least 1.")
     #Сортуємо нотатки за айді для стабільного порядку виводу
     notes_list = sorted(notes.data.values(), key=lambda n: n.id)
-    return _render_notes_table(notes_list)
+    #Рахуємо загальну кількість сторінок (округлення вгору)
+    total_pages = (len(notes_list) + page_size - 1) // page_size
+    #Йдемо по сторінках: кожна сторінка — зріз notes_list по page_size нотаток
+    for page in range(total_pages):
+        start = page * page_size
+        chunk = notes_list[start:start + page_size]
+        print(_render_notes_table(chunk))
+        print(f"Page {page + 1}/{total_pages}")
+        #Після останньої сторінки навігація не потрібна
+        if page + 1 < total_pages:
+            #Чекаємо Enter для наступної сторінки або 'q' для виходу
+            if input("Press Enter for next page, or 'q' to quit: ").strip().lower() == "q":
+                break
+    return ""
 
 #Функція виводу нотатки за айді
 @input_error
@@ -774,7 +795,7 @@ def print_help():
         ("all-contacts <page_size>", "Show all contacts page by page (default 5 per page)"),
         ("add-note <text>", "Add a new note (id is assigned automatically)"),
         ("show-note <id>", "Show the note with the given id"),
-        ("all-notes", "Show all notes in a table (id and text)"),
+        ("all-notes <page_size>", "Show all notes page by page (default 5 per page)"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
     ]
@@ -799,7 +820,7 @@ COMMANDS = [
     "add-address", "remove-address", "show-address",
     "add-email", "change-email", "remove-email", "show-emails",
     "show-contact", "search-contacts", "all-contacts",
-    "add-note", "show-note",
+    "add-note", "show-note", "all-notes",
     "close", "exit",
 ]
 
@@ -888,7 +909,9 @@ def main():
         elif command == "show-note":
             print(show_note(args, notes)) 
         elif command == "all-notes":
-            print(show_all_notes(args, notes))       
+            result = show_all_notes(args, notes)
+            if result:
+                print(result)
         else:
             #Невідома команда — пропонуємо найближчу за написанням
             print(suggest_command(command))
