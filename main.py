@@ -785,6 +785,23 @@ def remove_note(args, notes: NotesBook):
     notes.remove_note(note_id)
     return f"Note #{note_id} removed."
 
+#Функція пошуку нотаток за частковим збігом у тексті (нечутлива до регістру)
+@input_error
+def search_notes(args, notes: NotesBook):
+    if not args:
+        raise NotEnoughArgsError("Give me a search query please.")
+    #Об'єднуємо всі аргументи в один запит та приводимо до нижнього регістру
+    query = " ".join(args).lower()
+    #Шукаємо у тілі нотатки. Стабільний порядок виводу — сортування за айді
+    matches = []
+    sorted_notes = sorted(notes.data.values(), key=lambda n: n.id)
+    for note in sorted_notes:
+        if query in note.value.lower():
+            matches.append(note)
+    if not matches:
+        return f"No notes found for '{query}'."
+    return _render_notes_table(matches)
+
 #Функція виводу нотатки за айді
 @input_error
 def show_note(args, notes: NotesBook):
@@ -852,6 +869,7 @@ def print_help():
         ("edit-note <id> <new text>", "Replace the text of the note with the given id"),
         ("remove-note <id>", "Delete the note with the given id and renumber the rest"),
         ("show-note <id>", "Show the note with the given id"),
+        ("search-notes <query>", "Search notes by partial text match (case-insensitive)"),
         ("all-notes <page_size>", "Show all notes page by page (default 5 per page)"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
@@ -877,7 +895,7 @@ COMMANDS = [
     "add-address", "remove-address", "show-address",
     "add-email", "change-email", "remove-email", "show-emails",
     "show-contact", "search-contacts", "all-contacts",
-    "add-note", "edit-note", "remove-note", "show-note", "all-notes",
+    "add-note", "edit-note", "remove-note", "show-note", "search-notes", "all-notes",
     "close", "exit",
 ]
 
@@ -969,6 +987,8 @@ def main():
             print(remove_note(args, notes))
         elif command == "show-note":
             print(show_note(args, notes))
+        elif command == "search-notes":
+            print(search_notes(args, notes))
         elif command == "all-notes":
             result = show_all_notes(args, notes)
             if result:
