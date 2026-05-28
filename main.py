@@ -256,6 +256,9 @@ class NotesBook(UserDict):
         #Автоінкрементуємо лічильник, щоб наступна нотатка отримала новий айді
         self._next_id += 1
         return note
+    #Повертаємо нотатку за айді, якщо не знайдено повертаємо нан
+    def find_note(self, note_id):
+        return self.data.get(note_id)
 
 #Обробка помилок при недостатній кількості аргументів
 class NotEnoughArgsError(ValueError):
@@ -676,6 +679,50 @@ def add_note(args, notes: NotesBook):
     note = notes.add_note(value)
     return f"Note added with id {note.id}."
 
+#Функція рендерингу таблиці нотаток за списком нотаток
+def _render_notes_table(notes_list):
+    headers = ("ID", "Note")
+    #Перетворюємо айді у рядок для розрахунку ширини колонки
+    rows = [(str(note.id), note.value) for note in notes_list]
+    #Рахуємо ширину кожної колонки по найдовшому значенню (заголовок або будь-який рядок з даних)
+    id_width = max(len(headers[0]), max((len(row[0]) for row in rows), default=0))
+    note_width = max(len(headers[1]), max((len(row[1]) for row in rows), default=0))
+    #Розділювач рядків таблиці
+    separator = f"+-{'-' * id_width}-+-{'-' * note_width}-+"
+    lines = [separator]
+    #Заголовки вирівнюємо по центру
+    lines.append(f"| {headers[0]:^{id_width}} | {headers[1]:^{note_width}} |")
+    lines.append(separator)
+    for note_id, note_value in rows:
+        #Айді вирівнюємо по правому краю, текст нотатки — по лівому
+        lines.append(f"| {note_id:>{id_width}} | {note_value:<{note_width}} |")
+    lines.append(separator)
+    return "\n".join(lines)
+
+
+#Функція виводу всіх нотаток у табличному форматі
+@input_error
+def show_all_notes(args, notes: NotesBook):
+    if not notes.data:
+        return "Notes book is empty."
+    #Сортуємо нотатки за айді для стабільного порядку виводу
+    notes_list = sorted(notes.data.values(), key=lambda n: n.id)
+    return _render_notes_table(notes_list)
+
+#Функція виводу нотатки за айді
+@input_error
+def show_note(args, notes: NotesBook):
+    if not args:
+        raise NotEnoughArgsError("Give me the note id please.")
+    try:
+        note_id = int(args[0])
+    except ValueError:
+        raise ValueError("Note id must be an integer.")
+    note = notes.find_note(note_id)
+    if note is None:
+        return f"Note with id {note_id} not found."
+    return str(note)
+
 #Функція збереження адресної книги у файл за допомогою pickle
 def save_data(book, filename="addressbook.pkl"):
     with open(filename, "wb") as f:
@@ -726,6 +773,8 @@ def print_help():
         ("search-contacts <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
         ("all-contacts <page_size>", "Show all contacts page by page (default 5 per page)"),
         ("add-note <text>", "Add a new note (id is assigned automatically)"),
+        ("show-note <id>", "Show the note with the given id"),
+        ("all-notes", "Show all notes in a table (id and text)"),
         ("help", "Show this help message"),
         ("close | exit", "Save and exit"),
     ]
@@ -750,7 +799,7 @@ COMMANDS = [
     "add-address", "remove-address", "show-address",
     "add-email", "change-email", "remove-email", "show-emails",
     "show-contact", "search-contacts", "all-contacts",
-    "add-note",
+    "add-note", "show-note",
     "close", "exit",
 ]
 
@@ -835,7 +884,11 @@ def main():
         elif command == "search-contacts":
             print(search_contacts(args, book))
         elif command == "add-note":
-            print(add_note(args, notes))    
+            print(add_note(args, notes))
+        elif command == "show-note":
+            print(show_note(args, notes)) 
+        elif command == "all-notes":
+            print(show_all_notes(args, notes))       
         else:
             #Невідома команда — пропонуємо найближчу за написанням
             print(suggest_command(command))
