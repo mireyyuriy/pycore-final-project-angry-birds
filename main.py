@@ -918,84 +918,88 @@ def main():
     print("Welcome to the assistant bot!")
     #Виводимо список команд при запуску
     print_help()
-    #Запускаємо нескінченний цикл
-    while True:
-        #Запитуємо ввід команди
-        user_input = input("Enter a command: ").strip()
-        #Якщо інпут пустий ітеруємо цикл
-        if not user_input:
-            continue
-        #Ділимо інпут на команду і інші значення
-        command, *args = parse_input(user_input)
-        #Виконуємо відповідні команди (виводимо щось або викликаємо відповідні фукнкції)
-        if command in ["close", "exit"]:
-            #Зберігаємо адресну книгу у файл перед виходом
-            save_data(book)
-            #Зберігаємо книгу нотаток у файл перед виходом
-            save_notes(notes)
-            print("Good bye!")
-            break
-        elif command == "hello":
-            print("How can I help you?")
-        elif command == "help":
-            print_help()
-        elif command == "add-contact":
-            print(add_contact(args, book))
-        elif command == "rename-contact":
-            print(rename_contact(args, book))       
-        elif command == "change-phone":
-            print(change_contact(args, book))
-        elif command == "show-phone":
-            print(show_phone(args, book))
-        elif command == "remove-phone":
-            print(delete_phone(args, book))
-        elif command == "remove-contact":
-            print(delete_contact(args, book))
-        elif command == "all-contacts":
-            result = show_all(args, book)
-            if result:
-                print(result)
-        elif command == "add-birthday":
-            print(add_birthday(args, book))
-        elif command == "show-birthday":
-            print(show_birthday(args, book))
-        elif command == "birthdays":
-            print(birthdays(args, book))
-        elif command == "add-address":
-            print(add_address(args, book))
-        elif command == "remove-address":
-            print(remove_address(args, book))    
-        elif command == "show-address":
-            print(show_address(args, book))
-        elif command == "add-email":
-            print(add_email(args, book))
-        elif command == "change-email":
-            print(change_email(args, book))
-        elif command == "remove-email":
-            print(remove_email(args, book))
-        elif command == "show-emails":
-            print(show_email(args, book))
-        elif command == "show-contact":
-            print(show_contact(args, book))
-        elif command == "search-contacts":
-            print(search_contacts(args, book))
-        elif command == "add-note":
-            print(add_note(args, notes))
-        elif command == "edit-note":
-            print(edit_note(args, notes))
-        elif command == "remove-note":
-            print(remove_note(args, notes))
-        elif command == "show-note":
-            print(show_note(args, notes))
-        elif command == "search-notes":
-            print(search_notes(args, notes))
-        elif command == "all-notes":
-            result = show_all_notes(args, notes)
-            if result:
-                print(result)
-        else:
-            #Невідома команда — пропонуємо найближчу за написанням
-            print(suggest_command(command))
+    #Запускаємо нескінченний цикл. Ctrl+C/Ctrl+Z/Ctrl+D обробляються як вихід
+    try:
+        while True:
+            #Запитуємо ввід команди
+            user_input = input("Enter a command: ").strip()
+            #Якщо інпут пустий ітеруємо цикл
+            if not user_input:
+                continue
+            #Ділимо інпут на команду і інші значення
+            command, *args = parse_input(user_input)
+            #Виконуємо відповідні команди (виводимо щось або викликаємо відповідні фукнкції)
+            match command:
+                case "close" | "exit":
+                    break
+                case "hello":
+                    print("How can I help you?")
+                case "help":
+                    print_help()
+                case "add-contact":
+                    print(add_contact(args, book))
+                case "rename-contact":
+                    print(rename_contact(args, book))
+                case "change-phone":
+                    print(change_contact(args, book))
+                case "show-phone":
+                    print(show_phone(args, book))
+                case "remove-phone":
+                    print(delete_phone(args, book))
+                case "remove-contact":
+                    print(delete_contact(args, book))
+                case "all-contacts":
+                    result = show_all(args, book)
+                    if result:
+                        print(result)
+                case "add-birthday":
+                    print(add_birthday(args, book))
+                case "show-birthday":
+                    print(show_birthday(args, book))
+                case "birthdays":
+                    print(birthdays(args, book))
+                case "add-address":
+                    print(add_address(args, book))
+                case "remove-address":
+                    print(remove_address(args, book))
+                case "show-address":
+                    print(show_address(args, book))
+                case "add-email":
+                    print(add_email(args, book))
+                case "change-email":
+                    print(change_email(args, book))
+                case "remove-email":
+                    print(remove_email(args, book))
+                case "show-emails":
+                    print(show_email(args, book))
+                case "show-contact":
+                    print(show_contact(args, book))
+                case "search-contacts":
+                    print(search_contacts(args, book))
+                case "add-note":
+                    print(add_note(args, notes))
+                case "edit-note":
+                    print(edit_note(args, notes))
+                case "remove-note":
+                    print(remove_note(args, notes))
+                case "show-note":
+                    print(show_note(args, notes))
+                case "search-notes":
+                    print(search_notes(args, notes))
+                case "all-notes":
+                    result = show_all_notes(args, notes)
+                    if result:
+                        print(result)
+                case _:
+                    #Невідома команда — пропонуємо найближчу за написанням
+                    print(suggest_command(command))
+    except (KeyboardInterrupt, EOFError):
+        pass
+    finally:
+        #Зберігаємо адресну книгу та нотатки при будь-якому виході з циклу
+        save_data(book)
+        save_notes(notes)
+        print("\nGood bye!")
 
 
 main()
