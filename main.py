@@ -260,6 +260,29 @@ class NotesBook(UserDict):
     def find_note(self, note_id):
         return self.data.get(note_id)
 
+    #Замінюємо тіло нотатки за айді, айді зберігаємо
+    def edit_note(self, note_id, new_value):
+        note = self.data.get(note_id)
+        if note is None:
+            raise KeyError(f"Note with id {note_id} not found.")
+        #Створюємо нову нотатку з тим самим айді — конструктор Note валідує що тіло не порожнє
+        self.data[note_id] = Note(note_id, new_value)
+        return self.data[note_id]
+
+    #Видаляємо нотатку за айді та перенумеровуємо решту нотаток послідовно з 1
+    def remove_note(self, note_id):
+        if note_id not in self.data:
+            raise KeyError(f"Note with id {note_id} not found.")
+        #Беремо нотатки, що залишились, у порядку зростання старих айді
+        remaining = [self.data[k] for k in sorted(self.data.keys()) if k != note_id]
+        #Перебудовуємо словник з новими послідовними айді
+        self.data.clear()
+        for new_id, note in enumerate(remaining, start=1):
+            note.id = new_id
+            self.data[new_id] = note
+        #Наступний айді — після останньої перенумерованої нотатки
+        self._next_id = len(remaining) + 1
+
 #Обробка помилок при недостатній кількості аргументів
 class NotEnoughArgsError(ValueError):
     pass
@@ -730,6 +753,38 @@ def show_all_notes(args, notes: NotesBook):
                 break
     return ""
 
+#Функція редагування тіла нотатки за айді
+@input_error
+def edit_note(args, notes: NotesBook):
+    #Очікуємо айді та новий текст нотатки
+    if len(args) < 2:
+        raise NotEnoughArgsError("Give me the note id and new text please.")
+    try:
+        note_id = int(args[0])
+    except ValueError:
+        raise ValueError("Note id must be an integer.")
+    #Об'єднуємо решту аргументів у нове тіло нотатки
+    new_value = " ".join(args[1:])
+    #Якщо нотатки з таким айді нема — KeyError обробить декоратор
+    if notes.find_note(note_id) is None:
+        return f"Note with id {note_id} not found."
+    notes.edit_note(note_id, new_value)
+    return f"Note #{note_id} updated."
+
+#Функція видалення нотатки за айді з перенумерацією решти нотаток
+@input_error
+def remove_note(args, notes: NotesBook):
+    if not args:
+        raise NotEnoughArgsError("Give me the note id please.")
+    try:
+        note_id = int(args[0])
+    except ValueError:
+        raise ValueError("Note id must be an integer.")
+    if notes.find_note(note_id) is None:
+        return f"Note with id {note_id} not found."
+    notes.remove_note(note_id)
+    return f"Note #{note_id} removed."
+
 #Функція виводу нотатки за айді
 @input_error
 def show_note(args, notes: NotesBook):
@@ -794,6 +849,8 @@ def print_help():
         ("search-contacts <query>", "Search contacts by any field (name, phone, email, address, birthday)"),
         ("all-contacts <page_size>", "Show all contacts page by page (default 5 per page)"),
         ("add-note <text>", "Add a new note (id is assigned automatically)"),
+        ("edit-note <id> <new text>", "Replace the text of the note with the given id"),
+        ("remove-note <id>", "Delete the note with the given id and renumber the rest"),
         ("show-note <id>", "Show the note with the given id"),
         ("all-notes <page_size>", "Show all notes page by page (default 5 per page)"),
         ("help", "Show this help message"),
@@ -820,7 +877,7 @@ COMMANDS = [
     "add-address", "remove-address", "show-address",
     "add-email", "change-email", "remove-email", "show-emails",
     "show-contact", "search-contacts", "all-contacts",
-    "add-note", "show-note", "all-notes",
+    "add-note", "edit-note", "remove-note", "show-note", "all-notes",
     "close", "exit",
 ]
 
@@ -906,8 +963,12 @@ def main():
             print(search_contacts(args, book))
         elif command == "add-note":
             print(add_note(args, notes))
+        elif command == "edit-note":
+            print(edit_note(args, notes))
+        elif command == "remove-note":
+            print(remove_note(args, notes))
         elif command == "show-note":
-            print(show_note(args, notes)) 
+            print(show_note(args, notes))
         elif command == "all-notes":
             result = show_all_notes(args, notes)
             if result:
